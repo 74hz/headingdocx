@@ -11,6 +11,9 @@ build/
 .eggs/
 *.log
 
+# macOS 文件
+.DS_Store
+
 # 虚拟环境
 venv/
 env/

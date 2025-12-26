@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "headingdocx"
+version = "0.1.0"
+description = "A toolkit for manipulating Word documents by heading structure, including heading extraction, reordering, and XML operations."
+authors = [
+    { name = "YankoQiu", email = "yanko.qiu@gmail.com" }
+]
+license = { file = "LICENSE" }
+readme = "README.md"
+requires-python = ">=3.6"
+dependencies = [
+    "python-docx>=0.8.11"
+]
+keywords = ["word", "docx", "heading", "outline", "xml", "python-docx"]
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Developers",
+    "Topic :: Text Processing :: General"
+]
+
+[project.urls]
+Homepage = "https://github.com/74hz/headingdocx.git"
+Repository = "https://github.com/74hz/headingdocx.git"
