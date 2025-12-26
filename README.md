@@ -71,7 +71,3 @@ print(new_xml)  # <w:t>Hello Docx</w:t>
 ## License
 
 MIT
-
-## Author
-
-Your Name
