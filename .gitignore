@@ -1,0 +1,50 @@
+# Python 常规忽略
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.log
+
+# 虚拟环境
+venv/
+env/
+ENV/
+.venv/
+.python-version
+
+# VSCode 配置
+.vscode/
+
+# PyCharm 配置
+.idea/
+
+# 测试产出的 docx 文件
+tests/*.docx
+*.docx
+
+# 测试产出的 XML 文件
+tests/*.xml
+*.xml
+
+# pytest 缓存
+.pytest_cache/
+
+# 覆盖率报告
+htmlcov/
+.coverage
+coverage.xml
+
+# mypy 类型检查缓存
+.mypy_cache/
+
+# 临时文件
+*.tmp
+*.swp
+*.bak
+*.orig
