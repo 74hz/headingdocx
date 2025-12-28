@@ -1,95 +1,47 @@
 import re
-from typing import Optional
 
-from docx.shared import Pt
-from docx.text.paragraph import Paragraph
+NAMESPACE = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
 
 
-def get_outline_level(paragraph: Paragraph) -> Optional[int]:
-    """
-    获取段落的 outlineLvl 属性（如果有），返回 int，否则 None
-    """
-    try:
-        pPr = paragraph._element.pPr
-        if pPr is not None:
-            outlineLvl = pPr.find(qn("w:outlineLvl"))
-            if outlineLvl is not None:
-                val = outlineLvl.get(qn("w:val"))
-                if val is not None:
-                    return int(val)
-    except Exception:
-        pass
+def get_outline_level_xml(p):
+    """获取段落 outlineLvl 属性"""
+    lvl_elem = p.xpath("./w:pPr/w:outlineLvl", namespaces=NAMESPACE)
+    if lvl_elem:
+        try:
+            return int(lvl_elem[0].get("{%s}val" % NAMESPACE["w"]))
+        except Exception:
+            return None
     return None
 
 
-def is_bold_and_large(paragraph: Paragraph, min_size: int) -> bool:
-    """
-    判断段落是否有加粗且字号大于 min_size（磅值）
-    """
-    for run in paragraph.runs:
-        if run.bold and run.font.size:
-            try:
-                if run.font.size.pt >= min_size:
-                    return True
-            except Exception:
-                continue
+def is_bold_xml(p):
+    """判断段落是否加粗"""
+    return bool(p.xpath(".//w:rPr/w:b", namespaces=NAMESPACE))
+
+
+def is_large_xml(p, min_size=32):
+    """判断段落字号是否大于 min_size（单位：半磅）"""
+    sz_elems = p.xpath(".//w:rPr/w:sz", namespaces=NAMESPACE)
+    for sz in sz_elems:
+        try:
+            val = int(sz.get("{%s}val" % NAMESPACE["w"]))
+            if val >= min_size:
+                return True
+        except Exception:
+            continue
     return False
 
 
-def is_bold(paragraph: Paragraph) -> bool:
-    """
-    判断段落是否有加粗文本
-    """
-    return any(run.bold for run in paragraph.runs)
+def is_bold_and_large_xml(p, min_size=32):
+    return is_bold_xml(p) and is_large_xml(p, min_size)
 
 
-def is_large(paragraph: Paragraph, min_size: int) -> bool:
-    """
-    判断段落是否有字号大于 min_size（磅值）的文本
-    """
-    for run in paragraph.runs:
-        if run.font.size:
-            try:
-                if run.font.size.pt >= min_size:
-                    return True
-            except Exception:
-                continue
-    return False
+def is_bold_and_numbered_xml(p):
+    """判断是否加粗且带编号（简单实现）"""
+    text = "".join(p.xpath(".//w:t/text()", namespaces=NAMESPACE)).strip()
+    return is_bold_xml(p) and bool(re.match(r"^\d+[\.\、]", text))
 
 
-def is_bold_and_numbered(paragraph: Paragraph) -> bool:
-    """
-    判断段落是否加粗且有编号（numPr）
-    """
-    if not is_bold(paragraph):
-        return False
-    try:
-        pPr = paragraph._element.pPr
-        if pPr is not None and pPr.find(qn("w:numPr")) is not None:
-            return True
-    except Exception:
-        pass
-    return False
-
-
-def qn(tag: str) -> str:
-    """
-    快捷获取带命名空间的标签名
-    """
-    from docx.oxml.ns import qn as _qn
-
-    return _qn(tag)
-
-
-def match_heading_patterns(text: str) -> bool:
-    """
-    判断文本是否匹配常见章节标题模式
-    """
-    patterns = [
-        r"^第[一二三四五六七八九十百千]+[章节部分条款篇]",
-        r"^[一二三四五六七八九十]+[、\s]",
-        r"^[(（][一二三四五六七八九十]+[)）]",
-        r"^\d+\.\d+(\.\d+)*[\s]",
-        r"^\d+[、\s]",
-    ]
-    return any(re.match(p, text) for p in patterns)
+def match_heading_patterns(text):
+    """可直接复用原有实现"""
+    return bool(re.match(r"^第[一二三四五六七八九十]+章", text))

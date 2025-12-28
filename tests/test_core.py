@@ -1,5 +1,7 @@
 import os
+import re
 import sys
+import zipfile
 
 # 添加项目根目录到 sys.path，确保 headingdocx 可导入
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -11,7 +13,7 @@ from headingdocx.core import (
     get_headings,
     get_paragraph_xml,
     rebuild_doc_by_headings,
-    regex_replace_in_xml,
+    regex_replace_in_docx,
 )
 
 # 项目根目录
@@ -72,6 +74,7 @@ def test_rebuild_doc_by_headings(sample_docx):
 
 def test_get_paragraph_xml(sample_docx):
     xml_list = get_paragraph_xml(sample_docx)
+    xml_list = list(xml_list)  # 兼容生成器
     assert isinstance(xml_list, list)
     assert len(xml_list) > 0
     # 额外：将所有段落XML写入一个docx文件，便于人工检查
@@ -84,18 +87,18 @@ def test_get_paragraph_xml(sample_docx):
         os.remove(OUTPUT_XML_PATH)
 
 
-def test_regex_replace_in_xml():
-    xml = "<w:p><w:t>hello world</w:t></w:p>"
-    pattern = r"hello"
-    repl = "hi"
-    result = regex_replace_in_xml(xml, pattern, repl)
-    # 写入输出文件
-    output_path = os.path.join(ROOT, "output_regex_replace.xml")
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write(result)
-    assert "hi world" in result
-    assert result.startswith("<w:p>")
-    assert result.endswith("</w:p>")
+def test_regex_replace_in_docx(sample_docx):
+    pattern = r"<w:t>正文内容\d</w:t>"
+    repl = "<w:t>替换内容</w:t>"
+    output_path = os.path.join(ROOT, "output_regex_replace.docx")
+    regex_replace_in_docx(sample_docx, pattern, repl, output_path)
     assert os.path.exists(output_path)
+    # 这里的代码作用是：打开 output_path 这个 docx 文件（其实是 zip 格式），读取其中的 word/document.xml 文件内容，
+    # 然后断言替换后的内容 "<w:t>替换内容</w:t>" 存在于 xml 中，并且原始的 "正文内容\d" 已经不存在。
+    # 最后如果不保留文件则删除生成的文件。
+    with zipfile.ZipFile(output_path) as z:
+        xml = z.read("word/document.xml").decode("utf-8")
+    assert "<w:t>替换内容</w:t>" in xml
+    assert not re.search(r"<w:t>正文内容\d</w:t>", xml)
     if not KEEP_FILE and os.path.exists(output_path):
         os.remove(output_path)
