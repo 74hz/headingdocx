@@ -10,6 +10,7 @@ from .heading_utils import (
     is_bold_and_large_xml,
     is_bold_and_numbered_xml,
     is_bold_xml,
+    is_heading_like,
     is_large_xml,
     match_heading_patterns,
 )
@@ -33,51 +34,9 @@ def get_headings(doc_path: str) -> List[Tuple[str, Optional[int]]]:
     """
     headings = []
     for p in iter_paragraphs(doc_path):
-        text = "".join(p.xpath(".//w:t/text()", namespaces=NAMESPACE)).strip()
-        if not text:
-            continue
-        # 1. 样式名/ID判断
-        style_elems = p.xpath("./w:pPr/w:pStyle", namespaces=NAMESPACE)
-        style_name = (
-            style_elems[0].get("{%s}val" % NAMESPACE["w"]) if style_elems else ""
-        )
-        level = None
-        if style_name:
-            m1 = re.match(r"^Heading\s*(\d+)$", style_name, re.I)
-            m2 = re.match(r"^标题\s*(\d+)$", style_name)
-            if m1:
-                level = int(m1.group(1))
-            elif m2:
-                level = int(m2.group(1))
-            elif style_name.isdigit():
-                num = int(style_name)
-                if 1 <= num <= 9:
-                    outline_lvl = get_outline_level_xml(p)
-                    if outline_lvl is not None:
-                        level = outline_lvl + 1
-                    elif is_bold_and_large_xml(p, min_size=28):
-                        level = num
-        # 2. outlineLvl 属性
-        if level is None:
-            outline_lvl = get_outline_level_xml(p)
-            if outline_lvl is not None:
-                level = outline_lvl + 1
-        # 3. 格式特征
-        if level is None and text and len(text) < 200:
-            if is_bold_and_large_xml(p, min_size=44):
-                level = 1
-            elif is_bold_and_large_xml(p, min_size=36):
-                level = 2
-            elif is_bold_and_large_xml(p, min_size=32):
-                level = 3
-            elif is_bold_and_numbered_xml(p):
-                level = 2
-            elif match_heading_patterns(text) and is_bold_xml(p):
-                if is_large_xml(p, min_size=32):
-                    level = 1
-                else:
-                    level = 2
-        if level is not None:
+        is_heading, level = is_heading_like(p)
+        if is_heading:
+            text = "".join(p.xpath(".//w:t/text()", namespaces=NAMESPACE)).strip()
             headings.append((text, level))
     return headings
 
@@ -93,17 +52,7 @@ def rebuild_doc_by_headings(doc_path: str, heading_texts: List[str], output_path
     current_block = []
     for p in iter_paragraphs(doc_path):
         text = "".join(p.xpath(".//w:t/text()", namespaces=NAMESPACE)).strip()
-        # 判断是否为标题（可根据你的 get_headings 判定逻辑调整）
-        style_elems = p.xpath("./w:pPr/w:pStyle", namespaces=NAMESPACE)
-        style_name = (
-            style_elems[0].get("{%s}val" % NAMESPACE["w"]) if style_elems else ""
-        )
-        is_heading = False
-        if style_name:
-            m1 = re.match(r"^Heading\s*(\d+)$", style_name, re.I)
-            m2 = re.match(r"^标题\s*(\d+)$", style_name)
-            if m1 or m2:
-                is_heading = True
+        is_heading, _ = is_heading_like(p)
         # 新标题开始
         if is_heading:
             if current_heading and current_block:
@@ -115,6 +64,10 @@ def rebuild_doc_by_headings(doc_path: str, heading_texts: List[str], output_path
                 current_block.append(etree.tostring(p, encoding="unicode"))
     if current_heading and current_block:
         heading_blocks[current_heading] = list(current_block)
+
+    # 打印调试：heading_blocks 的 key 和传入的 heading_texts
+    print("DEBUG heading_blocks keys:", list(heading_blocks.keys()))
+    print("DEBUG input heading_texts:", heading_texts)
 
     # 2. 读取原 document.xml 的头部和尾部
     with zipfile.ZipFile(doc_path) as z:

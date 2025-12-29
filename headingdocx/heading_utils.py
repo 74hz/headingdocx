@@ -45,3 +45,48 @@ def is_bold_and_numbered_xml(p):
 def match_heading_patterns(text):
     """可直接复用原有实现"""
     return bool(re.match(r"^第[一二三四五六七八九十]+章", text))
+
+
+def is_heading_like(p):
+    """
+    统一的标题判定逻辑，供 get_headings 和 rebuild_doc_by_headings 共用。
+    返回 (is_heading: bool, level: Optional[int])
+    """
+    text = "".join(p.xpath(".//w:t/text()", namespaces=NAMESPACE)).strip()
+    if not text:
+        return False, None
+    style_elems = p.xpath("./w:pPr/w:pStyle", namespaces=NAMESPACE)
+    style_name = style_elems[0].get("{%s}val" % NAMESPACE["w"]) if style_elems else ""
+    level = None
+    if style_name:
+        m1 = re.match(r"^Heading\s*(\d+)$", style_name, re.I)
+        m2 = re.match(r"^标题\s*(\d+)$", style_name)
+        if m1:
+            level = int(m1.group(1))
+        elif m2:
+            level = int(m2.group(1))
+        elif style_name.isdigit():
+            num = int(style_name)
+            if 1 <= num <= 9:
+                level = num
+    # outlineLvl 属性
+    if level is None:
+        outline_lvl = get_outline_level_xml(p)
+        if outline_lvl is not None:
+            level = outline_lvl + 1
+    # 格式特征
+    if level is None and text and len(text) < 200:
+        if is_bold_and_large_xml(p, min_size=44):
+            level = 1
+        elif is_bold_and_large_xml(p, min_size=36):
+            level = 2
+        elif is_bold_and_large_xml(p, min_size=32):
+            level = 3
+        elif is_bold_and_numbered_xml(p):
+            level = 2
+        elif match_heading_patterns(text) and is_bold_xml(p):
+            if is_large_xml(p, min_size=32):
+                level = 1
+            else:
+                level = 2
+    return (level is not None), level
